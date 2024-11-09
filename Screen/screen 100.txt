@@ -1,0 +1,16 @@
+PROCESS BEFORE OUTPUT.
+  MODULE status_0100.
+
+PROCESS AFTER INPUT.
+  MODULE exit_0100 AT EXIT-COMMAND.
+
+* Check Organization Data
+  CHAIN.
+    FIELD : z85vbak-auart, " Order Doc Type
+            z85vbak-vkorg, " Sales Organization
+            z85vbak-vtweg, " Distribition Channel
+            z85vbak-spart. " Division
+    MODULE check_data_0100.
+  ENDCHAIN.
+
+  MODULE user_command_0100.

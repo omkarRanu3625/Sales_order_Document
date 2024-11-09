@@ -1,0 +1,710 @@
+*&---------------------------------------------------------------------*
+*& Modulpool Z85M005_SALES_ORDER_CREATION
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+PROGRAM z85m005_sales_order_creation.
+*--------------------------sgp-----------------------------------------*
+*    MODULE    : SD & ABAP
+*---------------------------------------------------------------------*
+*    Program   : Updates Tables ( X  )
+*                Create Data    ( X )
+*                Downloads data (   )
+*                Outputs List   (   )
+*
+*    Objective                  : Sales Order Creation
+*                               :
+*    Functional Specifications  :
+*    Technical Spec No          :
+*    Functional Consultant Name : Omkar Prajapati
+*    Date Created               : 27-07-2024
+*    Abap Consultant Name       : Anil Kadam Sir
+*    Client Name                : Utkarsh
+*    Project Name               : ABAP08
+*    Implementer Company Name   : Utkarsh
+*---------------------------------------------------------------------*
+*    External Dependencies                                            *
+*---------------------------------------------------------------------*
+*                                                                     *
+*---------------------------------------------------------------------*
+*    Amendment History
+*---------------------------------------------------------------------*
+* Who        Change ID    Reason                                      *
+*                                                                     *
+* XXXXXXXXX  AADDMMYYYY Where XXXX = Developers Name................. *
+*            AA- Developers Initial ................................. *
+*            ........................................................ *
+*            ........................................................ *
+*---------------------------------------------------------------------*
+
+*                                                                     *
+*---------------------------------------------------------------------*
+*       Includes                                                      *
+*---------------------------------------------------------------------*
+*INCLUDE   :
+*---------------------------------------------------------------------*
+*       Table Declaration                                             *
+*---------------------------------------------------------------------*
+TABLES   : z85vbak,
+           z85vbap,
+           z85vbpa,
+           z85konv,
+           vbak,
+           kna1,
+           vbkd,
+           tvak,
+           tvko,
+           tvtw,
+           tspa,
+           z85s_sales_items.
+
+*---------------------------------------------------------------------*
+*       Types                    Begin with TY_
+*---------------------------------------------------------------------*
+*TYPES   :
+*---------------------------------------------------------------------*
+*       Constants                Begin with CV_
+*---------------------------------------------------------------------*
+*CONSTANTS:
+*---------------------------------------------------------------------*
+*       Data                     Begin with gv_ Global Variable
+*                                           gs_ Global Structure
+*                                           gr_ Global Ranges
+*---------------------------------------------------------------------*
+*DATA     :
+*---------------------------------------------------------------------*
+DATA :gt_sales_items TYPE TABLE OF z85s_sales_items,
+      gs_sales_items TYPE z85s_sales_items,
+      gt_header_data TYPE TABLE OF z85vbak,
+      gs_header_data TYPE z85vbak,
+      gs_vbak        TYPE z85vbak,
+      gs_vbap        TYPE z85vbap,
+      date_bstdk     TYPE sy-datum,
+      gv_amount      TYPE vbap-netpr.
+
+DATA: gt_order_data TYPE TABLE OF z85s_sales_order_data,
+      gs_order_data TYPE z85s_sales_order_data,
+      gv_vbeln      TYPE bapivbeln-vbeln..
+
+*---------------------------------------------------------------------*
+*       Infotypes                   ( SD Module Specific)
+*---------------------------------------------------------------------*
+*INFOTYPES :
+*---------------------------------------------------------------------*
+*       Internal tables          Begin with GT_ Global table
+*---------------------------------------------------------------------*
+*DATA    : gt_mtdatt_struct TYPE TABLE OF z85s_mtdatt_struct.
+*---------------------------------------------------------------------*
+*       Field Symbols            Begin with FS_
+*---------------------------------------------------------------------*
+*FIELD-SYMBOLS:
+*---------------------------------------------------------------------*
+*       Field Groups             Begin with FG_
+*---------------------------------------------------------------------*
+*FIELD-GROUPS :
+*---------------------------------------------------------------------*
+*       Insert
+*---------------------------------------------------------------------*
+*INSERT   :
+*---------------------------------------------------------------------*
+*       Controls                Begin with TC_ for table controls
+*---------------------------------------------------------------------*
+CONTROLS : tc_item_data TYPE TABLEVIEW USING SCREEN '0200'.
+*---------------------------------------------------------------------*
+*       Input Parameters
+*              P_<FieldName>          Parameter
+*              S_<FieldName>          Select-options
+*              PR_<MeaningFullName>   Radio Button
+*              PC_<MeaningFullName>   Check_button
+*---------------------------------------------------------------------*
+*SELECT-OPTIONS :
+*PARAMETERS     :
+*---------------------------------------------------------------------*
+*       Initialisation
+*---------------------------------------------------------------------*
+*INITIALISATION   :
+*---------------------------------------------------------------------**
+*       At selection-screen
+*---------------------------------------------------------------------*
+*AT SELECTION-SCREEN.
+************************************************************************
+*       S T A R T   O F   S E L E C T I O N
+************************************************************************
+START-OF-SELECTION.
+*  perform get_data.
+*  perform process_data.
+
+END-OF-SELECTION.
+*  perform display_data.
+
+************************************************************************
+*       E N D       O F   S E L E C T I O N
+************************************************************************
+*eject
+*-----------------------------------------------------------------
+*       At line selection
+*---------------------------------------------------------------------*
+*AT LINE-SELECTION.
+*---------------------------------------------------------------------*
+*       PF Key Processing
+*---------------------------------------------------------------------*
+*AT PFXX.
+*---------------------------------------------------------------------*
+*       User Command Processing
+*---------------------------------------------------------------------*
+*AT USER-COMMAND.
+*---------------------------------------------------------------------*
+*       Top Of Page
+*---------------------------------------------------------------------*
+*TOP-OF-PAGE.
+*---------------------------------------------------------------------*
+*       End Of Page
+*---------------------------------------------------------------------*
+*END-OF-PAGE.*eject.
+*----------------------------------------------------------------------*
+*       FORM <FormName>.
+*----------------------------------------------------------------------
+*       text
+*----------------------------------------------------------------------
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------
+*FORM <formname>. UV_<FieldName> Using Variable
+*                 US_<TableName> Using Structure
+*                 CV_<Fieldname> Changing Variable
+*                 CS_<TableName> Changing Structure
+*                 IT_<TableName> Tables
+*----------------------------------------------------------------------*
+* Local variables must begin with L, followed by the naming convention
+* for the corresponding variable type eg.
+*   LV_<FieldName>      Local Variable
+*   LT_<TabName>        Local Table
+*   LR_<FieldName>
+*----------------------------------------------------------------------
+*ENDFORM.*eject.*Any declarations for classes, methods and interfaces.
+***********************---------------------****************************
+*                      E N D  O F  A B A P
+***********************---------------------****************************
+
+*&---------------------------------------------------------------------*
+*& Module STATUS_0100 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'SALESORDER100'.
+  SET TITLEBAR '100'.
+ENDMODULE.
+
+
+*&---------------------------------------------------------------------*
+*&      Module  EXIT_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE exit_0100 INPUT.
+  CASE sy-ucomm .
+    WHEN 'EXIT'.
+      LEAVE PROGRAM.
+  ENDCASE.
+ENDMODULE.
+
+
+*&---------------------------------------------------------------------*
+*& Module STATUS_0200 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0200 OUTPUT.
+  DATA lv_lines TYPE i.
+  SET PF-STATUS 'SALESORDER200'.
+  SET TITLEBAR '200'.
+  vbak-erdat = sy-datum.
+  DELETE gt_sales_items WHERE posnr IS INITIAL.
+  CLEAR gs_sales_items.
+  APPEND gs_sales_items TO gt_sales_items.
+  DESCRIBE TABLE gt_sales_items LINES tc_item_data-lines.
+
+  IF sy-ucomm = 'SAVE'.
+    LOOP AT SCREEN.
+      screen-input = 0. " Set the field to output only
+      MODIFY SCREEN.
+    ENDLOOP.
+  ENDIF.
+ENDMODULE.
+
+
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0200  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0200 INPUT.
+
+  CASE sy-ucomm.
+    WHEN 'ENTER'.
+      PERFORM check_data_0200.
+    WHEN 'BACK'.
+      LEAVE TO SCREEN 0100.
+    WHEN 'ADD'.
+      PERFORM add_row.
+    WHEN 'ADD_ITEM'.
+      PERFORM add_single_row.
+    WHEN 'DELETE'.
+      PERFORM delete_item.
+    WHEN 'CHANGE'.
+      PERFORM change_item.
+    WHEN 'SAVE'.
+      PERFORM save_data.
+    WHEN 'PICK'. " The event triggered when the user clicks on a hotspot field
+      IF sy-lisel+sy-fdpos(10) = 'Z85VBAK-VBELN'. " Check if the clicked field is VBELN
+        SET PARAMETER ID 'AUN' FIELD Z85vbAK-vbeln. " Set the VBELN parameter
+        CALL TRANSACTION 'VA03' AND SKIP FIRST SCREEN.
+      ENDIF.
+
+  ENDCASE.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  CHECK_DATA_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE check_data_0100 INPUT.
+
+  IF z85vbak-auart IS INITIAL.
+    MESSAGE ID 'Z85_SD'  TYPE 'E' NUMBER '002'.
+  ELSE.
+    SELECT SINGLE * INTO CORRESPONDING FIELDS OF gs_vbak FROM tvak WHERE auart = z85vbak-auart.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD'  TYPE 'E' NUMBER '001' WITH z85vbak-auart.
+    ENDIF.
+    CLEAR gs_vbak.
+  ENDIF.
+
+  IF z85vbak-vkorg IS INITIAL.
+    MESSAGE ID 'Z85_SD'  TYPE 'E' NUMBER '003'.
+  ELSE.
+    SELECT SINGLE * INTO CORRESPONDING FIELDS OF gs_vbak FROM tvko WHERE vkorg = z85vbak-vkorg.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD'  TYPE 'E' NUMBER '006' WITH z85vbak-vkorg.
+    ENDIF.
+    CLEAR gs_vbak.
+  ENDIF.
+
+  IF z85vbak-vtweg IS INITIAL.
+    MESSAGE ID 'Z85_SD'  TYPE 'E' NUMBER '004'.
+  ELSE.
+    SELECT SINGLE * INTO CORRESPONDING FIELDS OF gs_vbak FROM tvtw WHERE vtweg = z85vbak-vtweg.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD'  TYPE 'E' NUMBER '007' WITH z85vbak-vtweg.
+    ENDIF.
+    CLEAR gs_vbak.
+  ENDIF.
+
+  IF z85vbak-spart IS INITIAL.
+    MESSAGE ID 'Z85_SD'  TYPE 'E' NUMBER '005'.
+  ELSE.
+    SELECT SINGLE * INTO CORRESPONDING FIELDS OF gs_vbak FROM tspa WHERE spart = z85vbak-spart.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD'  TYPE 'E' NUMBER '008' WITH z85vbak-spart.
+    ENDIF.
+    CLEAR gs_vbak.
+  ENDIF.
+
+ENDMODULE.
+
+
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+  CASE sy-ucomm.
+    WHEN 'ENTR'.
+      CALL SCREEN 0200.
+    WHEN 'CANCEL'.
+      LEAVE PROGRAM.
+    WHEN 'BACK'.
+      LEAVE TO SCREEN 0.
+  ENDCASE.
+ENDMODULE.
+
+
+*&---------------------------------------------------------------------*
+*&      Module  EXIT_0200  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE exit_0200 INPUT.
+  CASE sy-ucomm .
+    WHEN 'EXIT'.
+      LEAVE PROGRAM.
+  ENDCASE.
+ENDMODULE.
+
+
+*&---------------------------------------------------------------------*
+*& Form check_data_0200
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM check_data_0200.
+  DATA lv_lines1 TYPE i.
+  DESCRIBE TABLE gt_sales_items LINES lv_lines1.
+  DATA: lv_posnr TYPE i,
+        lv_matnr TYPE vbap-matnr.
+
+  CLEAR gv_amount.
+  LOOP AT gt_sales_items INTO gs_sales_items.
+    gv_amount += gs_sales_items-netwr.
+  ENDLOOP.
+  z85vbak-netwr = gv_amount.
+
+  IF z85VBAK-bstdk IS NOT INITIAL AND z85VBAK-bstdk > sy-datum.
+    MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '023'.
+*    MESSAGE 'Date Should not be greater than current date' TYPE 'E'.
+  ENDIF.
+
+  SELECT name1
+    FROM kna1
+    INTO kna1-name1 WHERE kunnr = Z85vbak-kunnr.
+  ENDSELECT. " Fetching Customer Name for Customer Code
+
+
+  Z85vbak-netwr = gv_amount.
+  CLEAR gv_amount.
+
+  LOOP AT gt_sales_items INTO gs_sales_items.
+    lv_posnr = gs_sales_items-posnr.
+    lv_matnr = gs_sales_items-matnr.
+
+    LOOP AT gt_sales_items INTO gs_sales_items.
+      IF lv_matnr = gs_sales_items-matnr AND lv_posnr <> gs_sales_items-posnr.
+        MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '024'.
+        DELETE gt_sales_items WHERE matnr = z85s_sales_items-matnr  AND posnr = gs_sales_items-posnr .
+        IF sy-subrc = 0.
+          z85s_sales_items-posnr = z85s_sales_items-posnr - 10.
+        ENDIF.
+
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDLOOP.
+
+ENDFORM.
+
+
+*&---------------------------------------------------------------------*
+*&      Module  CHECK_HEAD_200  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE check_head_200 INPUT.
+
+  DATA: gs_kna1   TYPE kna1,
+        lv_bstkd  TYPE z85vbak-bstkd,
+        lv_output TYPE z85vbak-bstkd,
+        lv_valid  TYPE abap_bool.
+  " Check Customer code ( Sold to party )
+  IF z85vbak-kunnr IS INITIAL.
+    MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '009'.
+  ELSE.
+    SELECT SINGLE kunnr FROM knvv INTO CORRESPONDING FIELDS OF gs_vbak
+       WHERE vkorg = z85vbak-vkorg AND vtweg = z85vbak-vtweg AND spart = z85vbak-spart.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '010' WITH z85vbak-kunnr.
+    ENDIF.
+    CLEAR gs_vbak.
+  ENDIF.
+
+  " Validation for Customer ref. (bstkd) .
+*  lv_bstkd = z85vbak-bstkd.
+
+*  CALL FUNCTION 'SPELL_CHECK_STRING'
+*    EXPORTING
+*      text    = lv_bstkd
+*    IMPORTING
+*      correct = lv_valid.
+*  IF lv_valid = abap_false.
+*    MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '011'.
+*  ENDIF.
+
+  SELECT SINGLE name1 FROM kna1 INTO CORRESPONDING FIELDS OF gs_kna1 WHERE kunnr = z85vbak-kunnr and land1 = 'IN'.
+  IF sy-subrc = 0.
+    kna1-name1 = gs_kna1-name1.
+  ENDIF.
+
+  " Check Customer Ref is Alphanumeric charactor or not
+  IF z85VBAK-bstdk IS NOT INITIAL.
+    CALL FUNCTION 'DATE_CHECK_PLAUSIBILITY'
+      EXPORTING
+        date                      = z85VBAK-bstdk
+      EXCEPTIONS
+        plausibility_check_failed = 1
+        OTHERS                    = 2.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '012' .
+    ENDIF.
+  ENDIF.
+
+
+ENDMODULE.
+
+
+*&---------------------------------------------------------------------*
+*&      Module  CHECK_DATA_0200  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE check_data_0200 INPUT.
+  " Check material present in mara table
+  IF z85s_sales_items-matnr IS INITIAL.
+    MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '014'.
+  ELSE.
+    SELECT SINGLE matnr FROM mara INTO CORRESPONDING FIELDS OF gs_vbap WHERE matnr = z85s_sales_items-matnr.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '014' .
+    ENDIF.
+    CLEAR gs_vbap.
+  ENDIF.
+
+  "For description
+  SELECT maktx
+    FROM makt
+    INTO z85s_sales_items-maktx
+    WHERE matnr = z85s_sales_items-matnr.
+  ENDSELECT.
+
+  " Check Plant
+  IF z85s_sales_items-werks IS NOT INITIAL.
+    SELECT SINGLE werks FROM t001w INTO CORRESPONDING FIELDS OF gs_vbap WHERE werks = z85s_sales_items-werks.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '015'.
+    ENDIF.
+    SELECT SINGLE werks FROM marc INTO CORRESPONDING FIELDS OF gs_vbap
+      WHERE matnr = z85s_sales_items-matnr AND werks = z85s_sales_items-werks.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '016' WITH z85s_sales_items-matnr z85s_sales_items-werks.
+    ENDIF.
+    CLEAR gs_vbak.
+  ENDIF.
+
+  " Check Storage Location
+  IF z85s_sales_items-lgort IS NOT INITIAL.
+    SELECT SINGLE lgort FROM t001l INTO CORRESPONDING FIELDS OF gs_vbap WHERE lgort = z85s_sales_items-lgort.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '017' WITH z85s_sales_items-matnr z85s_sales_items-lgort.
+    ENDIF.
+    SELECT SINGLE lgort FROM mard INTO CORRESPONDING FIELDS OF gs_vbap
+      WHERE matnr = z85s_sales_items-matnr AND werks = z85s_sales_items-werks AND lgort = z85s_sales_items-lgort.
+    IF sy-subrc <> 0.
+      MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '018' WITH z85s_sales_items-matnr z85s_sales_items-werks z85s_sales_items-lgort.
+    ENDIF.
+  ENDIF.
+
+  "Quantity
+  IF z85s_sales_items-qty IS INITIAL.
+    MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '019'.
+  ENDIF.
+
+  "Quantity
+  IF z85s_sales_items-price IS INITIAL.
+    MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '020'.
+  ENDIF.
+
+
+  CLEAR: z85s_sales_items-amount,z85s_sales_items-netwr.
+  z85s_sales_items-amount = z85s_sales_items-qty * z85s_sales_items-price.
+  z85s_sales_items-netwr = z85s_sales_items-amount - ( ( z85s_sales_items-amount * z85s_sales_items-discount ) / 100 ).
+  MODIFY gt_sales_items FROM z85s_sales_items INDEX tc_item_data-current_line.
+
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& Form save_data
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM save_data .
+  BREAK-POINT.
+  DATA: lt_z85vbap TYPE TABLE OF z85vbap,
+        ls_z85vbap TYPE z85vbap,
+        lv_srno    TYPE i VALUE 1.
+
+  DATA : lt_itemdata TYPE TABLE OF z85vbap,
+         ls_itemdata TYPE z85vbap,
+         lt_partner  TYPE TABLE OF z85vbpa,
+         ls_partner  TYPE z85vbpa.
+
+  PERFORM check_data_0200.
+  DELETE gt_sales_items WHERE matnr IS INITIAL.
+  LOOP AT gt_sales_items INTO gs_sales_items.
+    gs_order_data-vbeln = lv_srno.
+    gs_order_data-erdat = vbak-erdat.
+    gs_order_data-auart = z85vbak-auart.
+    gs_order_data-vkorg = z85vbak-vkorg.
+    gs_order_data-vtweg = z85vbak-vtweg.
+    gs_order_data-spart = z85vbak-spart.
+    gs_order_data-kunnr = z85vbak-kunnr.
+    gs_order_data-bstkd = z85vbak-bstkd.
+    gs_order_data-bstdk = z85vbak-bstdk.
+    gs_order_data-itm_number = gs_sales_items-posnr.
+    gs_order_data-matnr = gs_sales_items-matnr.
+    gs_order_data-werks = gs_sales_items-werks.
+    gs_order_data-lgort = gs_sales_items-lgort.
+    gs_order_data-kwmeng = gs_sales_items-qty.
+    gs_order_data-netpr = gs_sales_items-netwr.
+    APPEND gs_order_data TO gt_order_data.
+    lv_srno = lv_srno + 1.
+  ENDLOOP.
+
+  CALL FUNCTION 'Z85_BAPI_SALESORDER_CREATE'
+    EXPORTING
+      it_sales_data    = gt_order_data
+    IMPORTING
+      salesdocument_no = gv_vbeln.
+  IF sy-subrc = 0.
+    MESSAGE ID 'Z85_SD' TYPE 'I' NUMBER '025' WITH gv_vbeln .
+    z85vbak-vbeln = gv_vbeln.
+    CLEAR gs_order_data.
+    gs_header_data-vbeln = z85vbak-vbeln.
+    gs_header_data-audat = vbak-erdat.
+    gs_header_data-auart = z85vbak-auart.
+    gs_header_data-vkorg = z85vbak-vkorg.
+    gs_header_data-vtweg = z85vbak-vtweg.
+    gs_header_data-spart = z85vbak-spart.
+    gs_header_data-kunnr = z85vbak-kunnr.
+    gs_header_data-bstkd = z85vbak-bstkd.
+    gs_header_data-bstdk = z85vbak-bstdk.
+    gs_header_data-netwr = z85vbak-netwr.
+
+    INSERT z85vbak FROM gs_header_data.
+    IF sy-subrc = 0.
+
+      DELETE gt_sales_items WHERE matnr IS INITIAL.
+
+      LOOP AT gt_sales_items INTO gs_sales_items.
+
+        ls_itemdata-vbeln = z85vbak-vbeln.
+        ls_itemdata-posnr = gs_sales_items-posnr.
+        ls_itemdata-matnr = gs_sales_items-matnr.
+        ls_itemdata-maktx = gs_sales_items-maktx.
+        ls_itemdata-werks = gs_sales_items-werks.
+        ls_itemdata-lgort = gs_sales_items-lgort.
+        ls_itemdata-qty = gs_sales_items-qty.
+        ls_itemdata-price = gs_sales_items-price.
+        ls_itemdata-discount = gs_sales_items-discount.
+        ls_itemdata-netwr = gs_sales_items-netwr.
+
+        INSERT z85vbap FROM ls_itemdata.
+        CLEAR ls_itemdata.
+
+*        select vbeln ,posnr, parvw,kunnr from vbpa into TABLE lt_partner WHERE vbeln = gv_vbeln.
+*          MODIFY lt_partner TRANSPORTING posnr
+*
+      ENDLOOP.
+      IF sy-subrc = 0.
+        COMMIT WORK.
+      ELSE.
+        ROLLBACK WORK.
+        MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '026'.
+      ENDIF.
+    ELSE.
+      MESSAGE ID 'Z85_SD' TYPE 'E' NUMBER '027'.
+      ROLLBACK WORK.
+    ENDIF.
+  ENDIF.
+
+
+ENDFORM.
+
+
+*&---------------------------------------------------------------------*
+*& Form add_row
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM add_row .
+  DELETE gt_sales_items WHERE posnr IS INITIAL.
+  DO 2 TIMES.
+    IF tc_item_data-top_line < lv_lines.
+      tc_item_data-top_line = tc_item_data-top_line + 1.
+    ENDIF.
+  ENDDO.
+  DESCRIBE TABLE gt_sales_items LINES lv_lines.
+
+ENDFORM.
+
+
+*&---------------------------------------------------------------------*
+*& Form add_single_row
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM add_single_row .
+  IF tc_item_data-top_line < lv_lines.
+    tc_item_data-top_line = tc_item_data-top_line + 1.
+  ENDIF.
+ENDFORM.
+
+
+*&---------------------------------------------------------------------*
+*& Form delete_item
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM delete_item .
+  DELETE gt_sales_items INDEX tc_item_data-current_line.
+  IF sy-subrc = 0.
+    DESCRIBE TABLE gt_sales_items LINES tc_item_data-lines.
+    CALL SCREEN 0200.
+  ENDIF.
+ENDFORM.
+
+
+*&---------------------------------------------------------------------*
+*& Form change_item
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM change_item .
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Module SET_OUTPUT_MODE_0200 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE set_output_mode_0200 OUTPUT.
+  IF sy-ucomm = 'SAVE'.
+    LOOP AT SCREEN.
+      screen-input = '0'. " Set the field to output-only mode
+      MODIFY SCREEN.
+    ENDLOOP.
+    IF screen-name = 'Z85VBAK-VBELN'. " Check if the field is VBELN
+      screen-input = 'X'.   " Set the field as a hotspot
+      MODIFY SCREEN.
+    ENDIF.
+  ENDIF.
+ENDMODULE.

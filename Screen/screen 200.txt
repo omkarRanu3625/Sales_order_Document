@@ -1,0 +1,34 @@
+PROCESS BEFORE OUTPUT.
+  MODULE status_0200.
+  LOOP AT gt_sales_items INTO z85s_sales_items WITH CONTROL
+tc_item_data CURSOR tc_item_data-current_line..
+
+  ENDLOOP.
+  MODULE set_output_mode_0200.
+
+PROCESS AFTER INPUT.
+  MODULE exit_0200 AT EXIT-COMMAND.
+  CHAIN.
+    FIELD :vbak-erdat,
+           z85VBAK-bstdk, " Purchase Date
+           z85vbak-kunnr, " Customer Code
+           z85vbak-bstkd. " customer ref
+    MODULE check_head_200.
+  ENDCHAIN.
+  LOOP AT gt_sales_items.
+    CHAIN.
+      FIELD :z85s_sales_items-posnr," Item no.
+             z85s_sales_items-matnr, " Material
+             z85s_sales_items-maktx, " description
+             z85s_sales_items-werks, " Plant
+             z85s_sales_items-lgort, "Storage Location
+             z85s_sales_items-qty,   " Quantity
+             z85s_sales_items-price, " Price
+             z85s_sales_items-amount, " Amount
+             z85s_sales_items-discount, " Discount
+             z85s_sales_items-netwr. " Net Value
+      MODULE check_data_0200.
+    ENDCHAIN.
+  ENDLOOP.
+
+  MODULE user_command_0200.

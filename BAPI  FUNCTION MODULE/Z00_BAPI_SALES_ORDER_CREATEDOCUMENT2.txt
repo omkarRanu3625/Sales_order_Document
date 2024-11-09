@@ -1,0 +1,216 @@
+FUNCTION z85_bapi_salesorder_create.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(IT_SALES_DATA) TYPE  Z85TT_SALES_ORDER_DATA
+*"  EXPORTING
+*"     VALUE(SALESDOCUMENT_NO) TYPE  BAPIVBELN-VBELN
+*"----------------------------------------------------------------------
+
+  DATA : gs_tab          TYPE z85s_sales_order_data,
+         gs_tab1         TYPE z85s_sales_order_data,
+         gv_file         TYPE string,
+         gv_item         TYPE vbap-posnr,
+         gt_intern       TYPE alsmex_tabline OCCURS 0 WITH HEADER LINE,
+         gt_raw          TYPE truxs_t_text_data,
+         gv_no_of_errors TYPE i,
+         gv_msg          TYPE string,
+         gc_error        TYPE string VALUE ': An error occured, no change done to the sales order.',
+         gc_success      TYPE string VALUE ': Sales order changed successfully.'.
+
+  DATA    : gt_tab  TYPE TABLE OF z85s_sales_order_data,
+            gt_tab1 TYPE TABLE OF z85s_sales_order_data.
+
+  DATA : order_header_in      LIKE bapisdhd1,
+         order_header_inx     LIKE bapisdhd1x,
+         salesdocument        LIKE bapivbeln-vbeln,
+         return               LIKE bapiret2 OCCURS 0 WITH HEADER LINE,
+         order_items_in       LIKE bapisditm OCCURS 0 WITH HEADER LINE,
+         order_items_inx      LIKE bapisditmx OCCURS 0 WITH HEADER LINE,
+         order_partners       LIKE bapiparnr OCCURS 0 WITH HEADER LINE,
+         order_schedules_in   LIKE bapischdl OCCURS 0 WITH HEADER LINE,
+         order_schedules_inx  LIKE bapischdlx OCCURS 0 WITH HEADER LINE,
+         order_conditions_in  LIKE bapicond OCCURS 0 WITH HEADER LINE,
+         order_conditions_inx LIKE bapicondx OCCURS 0 WITH HEADER LINE.
+
+  gt_tab = It_sales_data.
+
+  DATA: ls_tab    TYPE z85s_sales_order_data,
+        lt_return TYPE TABLE OF bapiret2,
+        ls_return TYPE bapiret2.
+  CLEAR : gs_tab,gs_tab1.
+  MOVE-CORRESPONDING gt_tab TO gt_tab1.
+*DELETE ADJACENT DUPLICATES FROM GT_TAB1
+*COMPARING SLNO ORDER_TYPE SORG DCH DIV KUNNR.
+  BREAK-POINT.
+*LOOP AT GT_TAB1 INTO GS_TAB1.
+  LOOP AT gt_tab1 INTO ls_tab WHERE vbeln = 1.
+
+    gs_tab1 = ls_tab .
+
+    CLEAR : order_header_in ,order_header_inx,order_partners[],order_partners.
+    REFRESH : order_items_in[],order_items_inx[],order_schedules_in[],
+              order_schedules_inx[],order_conditions_in[],order_conditions_inx[].
+
+    order_header_in-doc_date = gs_tab1-erdat.
+    order_header_in-doc_type = gs_tab1-auart.
+    order_header_in-sales_org = gs_tab1-vkorg.
+    order_header_in-distr_chan = gs_tab1-vtweg.
+    order_header_in-division = gs_tab1-spart.
+    order_header_in-ref_1 = gs_tab1-kunnr.
+    order_header_in-purch_no_c = gs_tab1-bstkd.
+    order_header_in-purch_date = gs_tab1-bstdk.
+
+    order_header_inx-updateflag = 'I'.
+    order_header_inx-doc_date = 'X'.
+    order_header_inx-doc_type = 'X'.
+    order_header_inx-sales_org = 'X'.
+    order_header_inx-distr_chan = 'X'.
+    order_header_inx-division = 'X'.
+    order_header_inx-ref_1 = 'X'.
+    order_header_inx-name = 'X'.
+    order_header_inx-purch_no_c = 'X'.
+    order_header_inx-purch_date = 'X'.
+
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input  = gs_tab1-kunnr
+      IMPORTING
+        output = gs_tab1-kunnr.
+
+    order_partners-partn_role = 'AG'. " Sold to party
+    order_partners-partn_numb = gs_tab1-kunnr.
+*    order_partners-itm_number = gs_tab1-itm_number.
+    APPEND order_partners.
+    CLEAR order_partners.
+
+    order_partners-partn_role = 'WE'. " Ship to party
+    order_partners-partn_numb = gs_tab1-kunnr.
+*    order_partners-itm_number = gs_tab1-itm_number.
+    APPEND order_partners.
+    CLEAR order_partners.
+
+    order_partners-partn_role = 'RE'. " Bill to party
+    order_partners-partn_numb = gs_tab1-kunnr.
+*    order_partners-itm_number = gs_tab1-itm_number.
+    APPEND order_partners.
+    CLEAR order_partners.
+
+    order_partners-partn_role = 'RG'. " Payer
+    order_partners-partn_numb = gs_tab1-kunnr.
+*    order_partners-itm_number = gs_tab1-itm_number.
+    APPEND order_partners.
+    CLEAR order_partners.
+
+
+  ENDLOOP.
+
+  LOOP AT gt_tab INTO gs_tab .
+
+    gv_item = gv_item + 10.
+    order_items_in-itm_number = gv_item.
+
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input  = gs_tab-matnr
+      IMPORTING
+        output = gs_tab-matnr.
+
+    order_items_in-material = gs_tab-matnr.
+    order_items_in-target_qty = gs_tab-kwmeng.
+    order_items_in-plant = gs_tab-werks.
+    order_items_in-store_loc = gs_tab-lgort.
+    APPEND order_items_in.
+    CLEAR : order_items_in.
+
+    order_items_inx-itm_number = gv_item.
+    order_items_inx-material = 'X'.
+    order_items_inx-target_qty = 'X'.
+    order_items_inx-plant = 'X'.
+    order_items_inx-store_loc = 'X'.
+    APPEND order_items_inx.
+    CLEAR : order_items_inx.
+
+    order_schedules_in-itm_number = gv_item.
+    order_schedules_in-req_qty = gs_tab-kwmeng.
+    order_schedules_in-sched_line = '0001'.
+    order_schedules_in-dlv_date = sy-datum + 10 .
+    APPEND order_schedules_in.
+    CLEAR : order_schedules_in.
+
+    order_schedules_inx-itm_number = gv_item.
+    order_schedules_inx-req_qty = 'X'.
+    order_schedules_inx-sched_line = '0001'.
+    order_schedules_inx-dlv_date = 'X'.
+*        order_schedules_inx-updateflag = 'I'.
+    APPEND order_schedules_inx.
+    CLEAR : order_schedules_inx.
+
+    order_conditions_in-itm_number = gv_item.
+    order_conditions_in-cond_type = 'ZPR0'.
+    order_conditions_in-cond_value = ( gs_tab-netpr / 10 ).
+    APPEND order_conditions_in.
+    CLEAR : order_conditions_in.
+
+    order_conditions_inx-itm_number = gv_item.
+    order_conditions_inx-cond_type = 'ZPR0'.
+    order_conditions_inx-cond_value = 'X'.
+    APPEND order_conditions_inx.
+    CLEAR : order_conditions_inx.
+
+  ENDLOOP.
+
+
+  CALL FUNCTION 'BAPI_SALESORDER_CREATEFROMDAT2'
+    EXPORTING
+      order_header_in      = order_header_in
+      order_header_inx     = order_header_inx
+    IMPORTING
+      salesdocument        = salesdocument
+    TABLES
+      return               = return
+      order_items_in       = order_items_in
+      order_items_inx      = order_items_inx
+      order_partners       = order_partners
+      order_schedules_in   = order_schedules_in
+      order_schedules_inx  = order_schedules_inx
+      order_conditions_in  = order_conditions_in
+      order_conditions_inx = order_conditions_inx.
+
+  APPEND return TO lt_return.
+*
+  READ TABLE lt_return WITH KEY type = 'E' INTO ls_return.
+
+*   If error found, rollback database changes.
+  IF sy-subrc EQ 0.
+
+    CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+
+*   Else, no error found, commit database changes.
+  ELSE.
+
+    IF salesdocument IS NOT INITIAL.
+      CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+        EXPORTING
+          wait = abap_true.
+      salesdocument_no = salesdocument .
+    ENDIF.
+
+
+  ENDIF.
+
+
+  CLEAR :gs_tab,
+  gs_tab1.
+
+
+
+*REFRESH : GT_TAB,GT_TAB1.
+*      ENDIF.
+  CLEAR: gv_item.
+
+* ENDIF.
+
+
+
+ENDFUNCTION.
